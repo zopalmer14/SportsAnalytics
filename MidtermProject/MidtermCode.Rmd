@@ -1,0 +1,399 @@
+---
+title: "STAT 1341 - Sports Analytics - Midterm Project"
+author: "Zach Palmer"
+subtitle: 'Due: 11/7/21'
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+## Environment Setup and Packages
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(stats)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+```
+
+## Data Collection 
+
+### Position Players
+Read in the csv file of all qualified (according to FanGraphs) batters from the '06 to '21 seasons and manipulate/clean accordingly to reach the desired format.
+
+```{r}
+batting_stats = read.csv("data/batting_statistics_06_21.csv")
+batting_stats = batting_stats %>%
+  arrange(Name, Age)
+```
+
+```{r}
+# we only want to keep entries that have the same players stats in back to back years
+keep = NULL
+
+# iterate through the data frame and check if the previous entry is the same player 
+# but with his stats from the prior season (one year younger), if so designate the row to be kept
+for (i in 2:nrow(batting_stats)) {
+  if (batting_stats[i, "Name"] == batting_stats[i - 1, "Name"] && 
+      batting_stats[i, "Age"] == (batting_stats[i - 1, "Age"] + 1)) {
+    keep = c(keep, i)
+  }
+}
+
+# iterate through the data frame and check if the next entry is the same player 
+# but with his stats from the next season (one year older), if so designate the row to be kept
+for (i in 1:(nrow(batting_stats) - 1)) {
+  if (batting_stats[i, "Name"] == batting_stats[i + 1, "Name"] && 
+      batting_stats[i, "Age"] == (batting_stats[i + 1, "Age"] - 1)) {
+    keep = c(keep, i)
+  }
+}
+
+# remove duplicates and sort
+keep = unique(keep)
+keep = sort(keep)
+
+# only keep the designated rows, remove any rows with missing values, 
+# and select the columns we are interested in
+batting_subset = batting_stats[keep,] %>%
+  drop_na() %>%
+  select(ï..Season, Name, Age, wOBA, Bat, BsR, Def, WAR)
+```
+
+### Pitchers\   
+Read in the csv file of all qualified (according to FanGraphs) pitchers from the '06 to '21 seasons and manipulate/clean accordingly to reach the desired format.
+
+```{r}
+pitching_stats = read.csv("data/pitching_statistics_06_21.csv")
+pitching_stats = pitching_stats %>%
+  arrange(Name, Age)
+```
+
+```{r}
+# we only want to keep entries that have the same players' stats in back to back years
+keep = NULL
+
+# iterate through the data frame and check if the previous entry is the same player 
+# but with his stats from the prior season (one year younger), if so designate the row to be kept
+for (i in 2:nrow(pitching_stats)) {
+  if (pitching_stats[i, "Name"] == pitching_stats[i - 1, "Name"] && 
+      pitching_stats[i, "Age"] == (pitching_stats[i - 1, "Age"] + 1)) {
+    keep = c(keep, i)
+  }
+}
+
+# iterate through the data frame and check if the next entry is the same player 
+# but with his stats from the next season (one year older), if so designate the row to be kept
+for (i in 1:(nrow(pitching_stats) - 1)) {
+  if (pitching_stats[i, "Name"] == pitching_stats[i + 1, "Name"] && 
+      pitching_stats[i, "Age"] == (pitching_stats[i + 1, "Age"] - 1)) {
+    keep = c(keep, i)
+  }
+}
+
+# remove duplicates and sort
+keep = unique(keep)
+keep = sort(keep)
+
+# only keep the designated rows, remove any rows with missing values, 
+# and select the columns we are interested in
+pitching_subset = pitching_stats[keep,] %>%
+  drop_na() %>%
+  select(ï..Season, Name, Age, vFA..pi., WHIP, xFIP, WAR)
+```
+
+## Descriptive Statistics
+
+### Position Players\  
+Create both a table of summary statistics and visualizations for the descriptive statistics for batters.
+
+```{r}
+# create a single row data frame that summarizes the batting statistics 
+# the data frame is a list of the mean, median, and sd of each of the individual stats 
+batting_summary = batting_subset %>%
+  summarise(
+    meanAge = mean(Age),
+    medianAge = median(Age),
+    sdAge = sd(Age),
+    meanWOBA = mean(wOBA),
+    medianWOBA = median(wOBA),
+    sdWOBA = sd(wOBA),
+    meanBat = mean(Bat),
+    medianBat = median(Bat),
+    sdBat = sd(Bat),
+    meanBsR = mean(BsR),
+    medianBsR = median(BsR),
+    sdBsR = sd(BsR),
+    meanDef = mean(Def),
+    medianDef = median(Def),
+    sdDef = sd(Def),
+    meanWAR = mean(WAR),
+    medianWAR = median(WAR),
+    sdWAR = sd(WAR)
+  )
+batting_summary
+```
+
+```{r fig.height=12, fig.width=9}
+# create a scatterplot of Age vs each statistic
+# create a histogram showing the distribution of each of the statistics
+par(mfrow = c(5, 2))
+
+#wOBA
+plot(batting_subset$Age, batting_subset$wOBA, xlab = "Age", ylab = "wOBA")
+hist(batting_subset$wOBA, main = "Distribution of wOBA", xlab = "wOBA")
+
+#Bat
+plot(batting_subset$Age, batting_subset$Bat, xlab = "Age", ylab = "Bat")
+hist(batting_subset$Bat, main = "Distribution of Batting Runs", xlab = "Bat")
+
+#BsR
+plot(batting_subset$Age, batting_subset$BsR, xlab = "Age", ylab = "BsR")
+hist(batting_subset$BsR, main = "Distribution of Baserunning Runs", xlab = "BsR")
+
+#Def
+plot(batting_subset$Age, batting_subset$Def, xlab = "Age", ylab = "Def")
+hist(batting_subset$Def, main = "Distribution of Defensive Runs", xlab = "Def")
+
+#WAR
+plot(batting_subset$Age, batting_subset$WAR, xlab = "Age", ylab = "WAR")
+hist(batting_subset$WAR, main = "Distribution of WAR", xlab = "WAR")
+```
+
+### Pitchers\  
+Create both a table of summary statistics and visualizations for the descriptive statistics for pitchers.
+
+```{r}
+# create a single row data frame that summarizes the pitching statistics 
+# the data frame is a list of the mean, median, and sd of each of the individual stats 
+pitching_summary = pitching_subset %>%
+  summarise(
+    meanAge = mean(Age),
+    medianAge = median(Age),
+    sdAge = sd(Age),
+    meanAvgVelo = mean(vFA..pi.),
+    medianAvgVelo = median(vFA..pi.),
+    sdAvgVelo = sd(vFA..pi.),
+    meanWHIP = mean(WHIP),
+    medianWHIP = median(WHIP),
+    sdWHIP = sd(WHIP),
+    meanXFIP = mean(xFIP),
+    medianXFIP = median(xFIP),
+    sdXFIP = sd(xFIP),
+    meanWAR = mean(WAR),
+    medianWAR = median(WAR),
+    sdWAR = sd(WAR)
+  )
+pitching_summary
+```
+
+```{r fig.height=12, fig.width=9}
+# create a scatterplot of Age vs each statistic
+# create a histogram showing the distribution of each of the statistics
+par(mfrow = c(4, 2))
+
+#Avg 4-Seam Velo
+plot(pitching_subset$Age, pitching_subset$vFA..pi., xlab = "Age", ylab = "vFA..pi.")
+hist(pitching_subset$vFA..pi., main = "Distribution of Avg. 4-Seam Velocity", xlab = "vFA..pi.")
+
+#WHIP
+plot(pitching_subset$Age, pitching_subset$WHIP, xlab = "Age", ylab = "WHIP")
+hist(pitching_subset$WHIP, main = "Distribution of WHIP", xlab = "WHIP")
+
+#xFIP
+plot(pitching_subset$Age, pitching_subset$xFIP, xlab = "Age", ylab = "xFIP")
+hist(pitching_subset$xFIP, main = "Distribution of xFIP", xlab = "xFIP")
+
+#WAR
+plot(pitching_subset$Age, pitching_subset$WAR, xlab = "Age", ylab = "WAR")
+hist(pitching_subset$WAR, main = "Distribution of WAR", xlab = "WAR")
+```
+
+## Inferential Statistics  
+
+### Position Players\  
+Generate the aging curves for the position players
+
+```{r}
+# create an empty data frame with 6 columns to fill with the age ranges and 
+# the differences in the statistic values between age changes/years 
+aging_diffs = data.frame(matrix(ncol = 6, nrow = 0))
+cols = c("ageRange", "wOBA_diff", "Bat_diff", "BsR_diff", "Def_diff", "WAR_diff")
+colnames(aging_diffs) = cols
+```
+
+```{r}
+# iterate over the data frame and for each set of consecutive seasons calculate the
+# difference between the statistic values for the following year and the current
+for (i in 1:(nrow(batting_subset) - 1)) {
+  # check that the next row represents the following season for the same player
+  if (batting_subset[i, "Name"] == batting_subset[i + 1, "Name"] && 
+      batting_subset[i, "Age"] == (batting_subset[i + 1, "Age"] - 1)) {
+    # grab each of the values
+    ageRange = paste(batting_subset[i, "Age"], batting_subset[i + 1, "Age"], sep = "-")
+    wOBA_diff = batting_subset[i + 1, "wOBA"] - batting_subset[i, "wOBA"]
+    Bat_diff = batting_subset[i + 1, "Bat"] - batting_subset[i, "Bat"]
+    BsR_diff = batting_subset[i + 1, "BsR"] - batting_subset[i, "BsR"]
+    Def_diff = batting_subset[i + 1, "Def"] - batting_subset[i, "Def"]
+    WAR_diff = batting_subset[i + 1, "WAR"] - batting_subset[i, "WAR"]
+    # put the values together into a list representing a row in the data frame
+    row = list(ageRange, wOBA_diff, Bat_diff, BsR_diff, Def_diff, WAR_diff)
+    # add the row to the data frame
+    aging_diffs[nrow(aging_diffs) + 1,] = row
+  }
+}
+```
+
+```{r}
+# create a new data frame that contains the average difference between each 
+# of the statistic values for each age range
+sum_of_diffs = aging_diffs %>%
+  # group the data frame by the age ranges so summarise() takes the mean for each
+  group_by(ageRange) %>%
+  summarise(
+    N = n(),
+    avg_wOBA_diff = mean(wOBA_diff),
+    avg_Bat_diff = mean(Bat_diff), 
+    avg_BsR_diff = mean(BsR_diff), 
+    avg_Def_diff = mean(Def_diff), 
+    avg_WAR_diff = mean(WAR_diff)
+  )
+```
+
+```{r}
+# outputs the sample size for each of the age ranges, just useful information to know
+print(tibble(sum_of_diffs[, 1:2]), n = 21)
+```
+
+```{r fig.height=12, fig.width=9}
+# plot the aging curves for each of the statistics
+par(mfrow = c(1, 2))
+
+WAR = ggplot(aes(x = ageRange, y = avg_WAR_diff, group = 1), data = sum_of_diffs) + 
+  labs(title = "Aging Curve for Position Player WAR", 
+       x = "Age Range", y = "Change in WAR") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  scale_y_continuous(breaks = seq(-2.0, 1.0, 0.2)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+wOBA = ggplot(aes(x = ageRange, y = avg_wOBA_diff, group = 1), data = sum_of_diffs) + 
+  labs(title = "Aging Curve for wOBA", 
+       x = "Age Range", y = "Change in wOBA") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+Bat = ggplot(aes(x = ageRange, y = avg_Bat_diff, group = 1), data = sum_of_diffs) + 
+  labs(title = "Aging Curve for Batting Runs", 
+       x = "Age Range", y = "Change in Batting Runs") +
+  geom_point() + 
+  geom_line(color = "blue")  +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+BsR = ggplot(aes(x = ageRange, y = avg_BsR_diff, group = 1), data = sum_of_diffs) + 
+  labs(title = "Aging Curve for Baserunning Runs", 
+       x = "Age Range", y = "Change in Baserunning Runs") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+Def = ggplot(aes(x = ageRange, y = avg_Def_diff, group = 1), data = sum_of_diffs) + 
+  labs(title = "Aging Curve for Defensive Runs", 
+       x = "Age Range", y = "Change in Defensive Runs") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+grid.arrange(wOBA, Bat, BsR, Def, WAR, ncol = 2)
+```
+
+### Pitchers\  
+Generate the aging curves for the pitchers
+
+```{r}
+# create an empty data frame with 5 columns to fill with the age ranges and 
+# the differences in the statistic values between age changes/years 
+pitching_aging_diffs = data.frame(matrix(ncol = 5, nrow = 0))
+cols = c("ageRange", "vFA_diff", "WHIP_diff", "xFIP_diff", "WAR_diff")
+colnames(pitching_aging_diffs) = cols
+```
+
+```{r}
+# iterate over the data frame and for each set of consecutive seasons calculate the
+# difference between the statistic values for the following year and the current
+for (i in 1:(nrow(pitching_subset) - 1)) {
+  # check that the next row represents the following season for the same player
+  if (pitching_subset[i, "Name"] == pitching_subset[i + 1, "Name"] && 
+      pitching_subset[i, "Age"] == (pitching_subset[i + 1, "Age"] - 1)) {
+    # grab each of the values
+    ageRange = paste(pitching_subset[i, "Age"], pitching_subset[i + 1, "Age"], sep = "-")
+    vFA_diff = pitching_subset[i + 1, "vFA..pi."] - pitching_subset[i, "vFA..pi."]
+    WHIP_diff = pitching_subset[i + 1, "WHIP"] - pitching_subset[i, "WHIP"]
+    xFIP_diff = pitching_subset[i + 1, "xFIP"] - pitching_subset[i, "xFIP"]
+    WAR_diff = pitching_subset[i + 1, "WAR"] - pitching_subset[i, "WAR"]
+    # put the values together into a list representing a row in the data frame
+    row = list(ageRange, vFA_diff, WHIP_diff, xFIP_diff, WAR_diff)
+    # add the row to the data frame
+    pitching_aging_diffs[nrow(pitching_aging_diffs) + 1,] = row
+  }
+}
+```
+
+```{r}
+# create a new data frame that contains the average difference between each 
+# of the statistic values for each age range
+pitching_sum_of_diffs = pitching_aging_diffs %>%
+  # group the data frame by the age ranges so summarise() takes the mean for each
+  group_by(ageRange) %>%
+  summarise(
+    N = n(),
+    avg_vFA_diff = mean(vFA_diff),
+    avg_WHIP_diff = mean(WHIP_diff), 
+    avg_xFIP_diff = mean(xFIP_diff), 
+    avg_WAR_diff = mean(WAR_diff)
+  )
+```
+
+```{r}
+# outputs the sample size for each of the age ranges, just useful information to know
+print(tibble(pitching_sum_of_diffs[, 1:2]), n = 25)
+```
+
+```{r fig.height=8, fig.width=9}
+# plot the aging curves for each of the statistics
+par(mfrow = c(1, 2))
+
+pitch_WAR = ggplot(aes(x = ageRange, y = avg_WAR_diff, group = 1), data = pitching_sum_of_diffs) + 
+  labs(title = "Aging Curve for Pitcher WAR", 
+       x = "Age Range", y = "Change in WAR") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  scale_y_continuous(breaks = seq(-2.0, 1.0, 0.2)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+vFA = ggplot(aes(x = ageRange, y = avg_vFA_diff, group = 1), data = pitching_sum_of_diffs) + 
+  labs(title = "Aging Curve for Average 4-Seam Velocity", 
+       x = "Age Range", y = "Change in Avg. 4-Seam Velo") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+WHIP = ggplot(aes(x = ageRange, y = avg_WHIP_diff, group = 1), data = pitching_sum_of_diffs) + 
+  labs(title = "Aging Curve for WHIP", 
+       x = "Age Range", y = "Change in WHIP") +
+  geom_point() + 
+  geom_line(color = "blue")  +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+xFIP = ggplot(aes(x = ageRange, y = avg_xFIP_diff, group = 1), data = pitching_sum_of_diffs) + 
+  labs(title = "Aging Curve for xFIP", 
+       x = "Age Range", y = "Change in xFIP") +
+  geom_point() + 
+  geom_line(color = "blue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+grid.arrange(vFA, WHIP, xFIP, pitch_WAR, ncol = 2)
+```
