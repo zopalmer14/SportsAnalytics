@@ -1,5 +1,5 @@
 # SportsAnalytics
-Contains both the midterm and final projects for Sports Analytics (STAT 1341) with Dr. Bryan Nelson at the University of Pittsburgh (Fall 2021)
+Midterm and final projects for Sports Analytics (STAT 1341) with Dr. Bryan Nelson at the University of Pittsburgh (Fall 2021)
 
 ### Contains
 * `MidtermProject` - investigates the impact of aging on player performance for both position players and pitchers in the MLB
